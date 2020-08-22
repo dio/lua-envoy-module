@@ -1,0 +1,30 @@
+name: Build and test
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: dio123/envoy-build
+    steps:
+      - uses: styfle/cancel-workflow-action@0.4.1
+        with:
+          access_token: ${{ github.token }}
+      - uses: actions/checkout@v2
+      - run: bazel/setup_clang.sh /opt/llvm
+      - run: echo "build --config=clang" >> user.bazelrc
+      - run: echo "build --remote_http_cache=${{ secrets.GCP_BUCKET_URI }}" >> user.bazelrc
+      - run: echo "build --remote_upload_local_results=true" >> user.bazelrc
+      - uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+        with:
+          version: 'latest'
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          export_default_credentials: true
+      - run: bazel build --google_credentials=${GOOGLE_APPLICATION_CREDENTIALS} //source/exe:envoy
